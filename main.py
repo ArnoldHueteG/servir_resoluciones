@@ -71,31 +71,10 @@ def getDateWithParse(posRoom,fin_Date):
             if intentos >= max_intentos:
                 print("Se agotaron los intentos. No se pudo completar la solicitud.")
 
-
-            
-            # getOrder = requests.get(pageDate)
             getHtml = getOrder.text
-            # "Parse Html-PageDate"
+            # Parse Html-PageDate
             soupDpage = BeautifulSoup(getHtml,"html.parser")
-            rows = 0
-            tables = soupDpage.find('table')
-            tbodyB = tables.find('tbody')
-            if tbodyB:
-                rows = tables.find('tbody').find_all('tr')
-            else:
-                rowsPre = tables.find_all('tr')
-                rows = rowsPre[1:]
-            # tables = soupDpage.find('tbody')
-            # try:    
-            #     if tables:
-            #         rows = tables.find_all('tr')
-            #     else:
-            #         print("entra por table")
-            #         tables = soupDpage.find('table')
-            #         rows = tables.find_all('tr')
-            #         rows = rows[1:]
-            # except:
-            #     print(f"No entramos por el tr: {tables}")
+            rows = soupDpage.find_all('tr')[1:]
             sessionValue = ""
             # Iterate over all <tr> elements within the <tbody>
             for row in rows:
