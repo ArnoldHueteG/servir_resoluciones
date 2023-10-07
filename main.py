@@ -119,7 +119,7 @@ def getDateWithParse(posRoom,fin_Date,file_Name,debug = False):
 
 specialCase = "http://files.servir.gob.pe/WWW/files/Tribunal/TSC-Resoluciones-2010.html"
 urlsBase = ["https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/","https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/segunda-sala/"]
-getDateWithParse(urlsBase[0],20,"Primera Sala",True)
+getDateWithParse(urlsBase[0],20,"Primera Sala",False)
 # getDateWithParse(urlsBase[1],23,"Segunda Sala",True)
 
 
