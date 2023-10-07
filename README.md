@@ -60,8 +60,8 @@ source .venv/bin/activate && pip install --upgrade pip && pip install --upgrade 
 pip install -r requirements.txt
 ```
 
-2. Create partitioned table in BigQuery.
+2. Run the main.py file
 
 ```bash
-bq mk --table --time_partitioning_field fecha_extraccion --time_partitioning_type MONTH --schema resoluciones.json Servir.Resoluciones
+python main.py
 ```
