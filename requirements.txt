@@ -9,8 +9,3 @@ pandas-gbq
 google-cloud-storage
 google-cloud-secret-manager
 google-cloud-bigquery
-google-cloud-dataflow-client
-pypdf
-langchain
-openai
-pymupdf
