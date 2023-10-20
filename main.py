@@ -1,147 +1,135 @@
 import bs4
 from bs4 import BeautifulSoup
 from requests.exceptions import ChunkedEncodingError
-from datetime import datetime
 import requests
-import datetime
-import json
+from datetime import datetime
 import time
+import datetime
 import pandas as pd
+import json
 import csv
 import locale
+import re
+from selenium import webdriver
+from bs4 import BeautifulSoup
 
-TABLE_NAME = "Servir.Resolution"
+driver = webdriver.Firefox()
 
-months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre']
+def saveData_CSV(dictionary, file_Name):
+    file_Name = file_Name
+    csv_filename = f"{file_Name}.csv"
+    with open(csv_filename, mode='w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(dictionary.keys())
+        data_rows = zip(*dictionary.values())
+        csv_writer.writerows(data_rows)
+    print(f"Los datos se han guardado en '{csv_filename}'.")
 
-def parse_url(date_extraction_str):
-    date_extraction = datetime.datetime.strptime(date_extraction_str, '%Y-%m-%d').date()
-    month_name = months[date_extraction.month]
-    url = f"https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/resoluciones-{date_extraction.year}-{month_name}/"
-    print(url)
-    response = requests.get(url)
-    soupDpage = BeautifulSoup(response.text,"html.parser")
-    rows = soupDpage.find_all('tr')[1:]
-    if not rows:
-        print(f"No existen elementos tr en url")
-        print(rows)
-    sessionValue = ""
-    # Iterate over all <tr> elements within the <tbody>
-    ls_data = []
-    for row in rows:
-        if row.find('th') or row.find('td',colspan="4"):
-            # sessionValue = row.find('th').get_text()
-            sessionValue = row.get_text()
-            continue    
-        anchor_tag = row.find('a')
-        if anchor_tag:
-            resolution = anchor_tag.get_text()
-            resolution_url = anchor_tag['href']
-            name = row.find_all('td')[1].get_text()
-            entity = row.find_all('td')[2].get_text()
-            index = {
-                "fecha_extraction": date_extraction_str,
-                "resolucion": resolution,
-                "resolucion_url": resolution_url,
-                "nombre": name,
-                "entidad": entity,
-                "fecha": date_extraction_str, # TODO: change to parse from title th tag
-                "sesion": sessionValue # TODO: trim the string
-            }
-            ls_data.append(index)
+def urlsvD_Generator():
+    urlBase = 'https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/'
+    response = requests.get(urlBase)
+    soup = BeautifulSoup(response.text,"html.parser")
+    tRow = (soup.find('tbody')).find_all('tr')
+    urls = []
+    for tr in tRow[1:]:
+        for tdIntr in tr.find_all('td'):
+            urlDate = tdIntr.find('a')
+            if urlDate:
+                urlDateSuccess = urlDate['href']
+                replace_url = "https://www.servir.gob.pe"
+                if urlDateSuccess.startswith(replace_url):
+                    urlDateSuccess = urlDateSuccess.replace(replace_url, "")
+                # pagParse = "https://www.servir.gob.pe"+urlDateSuccess
+                # print(pagParse)
+                urls.append(urlDateSuccess)
 
-    print(len(ls_data))
-    print(json.dumps(ls_data[:10], indent=4, sort_keys=True))
-#parse_url('2011-01-01')
+    return urls
 
-
-servir_resolution_data = {
-    "fecha_extraction": [],
-    "resolution": [],
-    "resolution_url": [],
-    "nombre": [],
-    "entidad": [],
-    "fecha": [],
-    "sesion": []
-}
-stringPrincipal = "https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/"
-def dataExtraction():
+def dataRecollection():
+    urls = urlsvD_Generator()
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-    for yearF in range(11,24):
-        for monTH in months:
-            pagParse = f"https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/resoluciones-20{yearF}-{monTH}/"
-            # print(f'Entrando en {pagParse}')
-            response = requests.get(pagParse, stream=True)
-            if response.status_code == 200:
-                print(f"Entrando en la pagina -> {pagParse}")
+    servir_resolution_data = {
+        "fecha_extraction": [],
+        "resolution": [],
+        "resolution_url": [],
+        "nombre": [],
+        "entidad": [],
+        "fecha": [],
+        "sesion": []
+    }
+    headers = {"user-agent":"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0"}
+    valorReturnIt = ''
+    for urlTrans in urls:
+        numero = re.search(r'\d{4}', urlTrans)
+        year_found = numero.group()
+        yearF = int(year_found)
+        pagParse = "https://www.servir.gob.pe"+urlTrans
+        print(f"{yearF} -> las urls son {pagParse}")
+        try:
+            # start_time = time.time()
+            driver.get(pagParse)
+            html = driver.page_source
+            # response.raise_for_status()
+            # elapsed_time = time.time() - start_time
+            # print(f"Tiempo transcurrido: {elapsed_time} segundos")
+        except requests.exceptions.RequestException as e:
+            print(f"Error en la solicitud: {e}")
+        else:
+            soupDpage = BeautifulSoup(html,"html.parser")
+            trInTable = soupDpage.find_all('tr')
+            if trInTable:
+                print("Si existe trInTable")
             else:
-                if monTH == "setiembre":
-                    pagParse = f"https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/resoluciones-20{yearF}-septiembre/"
-                    response = requests.get(pagParse, stream=True)
-                    print(f"Cambiando setiembre por septiembre: {response.status_code}")
-                else:
-                    print(f"Respuesta no exitosa sobre la web -> {pagParse}. Código de estado: {response.status_code}")
+                print(f"ERROR en la Pag -> {pagParse}")
+                continue
+            sessionValue = ''
+            dateS = ''
+            for tr in trInTable[1:]:
+                thT =  tr.find('th')
+                if thT:
+                    sessionValue = ' '.join(tr.stripped_strings)
+                    if yearF < 2014:
+                        if tr.b:
+                            date_text = tr.b.get_text()
+                        if tr.strong:
+                            date_text = tr.strong.get_text()
+                        if "SETIEMBRE" in date_text:
+                            date_text = date_text.replace("SETIEMBRE", "SEPTIEMBRE")
+                        dateS = datetime.datetime.strptime(date_text, '%d %B %Y').date()
                     continue
-            for chunk in response.iter_content(chunk_size=8192):
-                soupDpage = BeautifulSoup(response.text,"html.parser")
-                table = soupDpage.find('table')
-                if table:
-                    print("Si existe un table")
-                trInTable = soupDpage.find_all('tr')
-                if trInTable:
-                    print("Si existe trInTable")
-                sessionValue = ''
-                dateS = ''
-                for tr in trInTable[1:]:
-                    thT =  tr.find('th')
-                    if thT:
-                        sessionValue = ' '.join(tr.stripped_strings)
-                        if yearF < 14:
-                            if tr.b:
-                                date_text = tr.b.get_text()
-                            if tr.strong:
-                                date_text = tr.strong.get_text()
-                            if "SETIEMBRE" in date_text:
-                                date_text = date_text.replace("SETIEMBRE", "SEPTIEMBRE")
-                            dateS = datetime.datetime.strptime(date_text, '%d %B %Y').date()
-                        continue
-                    resolution = tr.find('a')
-                    if resolution:
-                        resolution_text = resolution.get_text()
-                        resolution_url = resolution['href']
-                        # print(resolution_url)
-                        name = (tr.find_all('td')[1]).get_text()
-                        entity = (tr.find_all('td')[2]).get_text()
-                        if yearF>= 14:
-                            date_text = (tr.find_all('td')[3]).get_text()
-                            wordsDate = date_text.split()
-                            subStringDate = ' '.join(wordsDate[:3])
-                            date_text = subStringDate+" 20"+str(yearF) 
-                            date_text = date_text.lower()
-                            if "setiembre"in date_text:
-                                date_text = date_text.replace("setiembre", "septiembre")
-                            if "DE " in date_text:
-                                dateS = datetime.datetime.strptime(date_text, '%d DE %B %Y').date()
-                            elif "de " in date_text:
-                                dateS = datetime.datetime.strptime(date_text, '%d de %B %Y').date()
-                            elif "del " in date_text:
-                                dateS = datetime.datetime.strptime(date_text, '%d %B del %Y').date()
-                            print(f"EL valor de date es: {date_text} y su dateS: {dateS}")
-                        date_Today = datetime.date.today().strftime("%d/%m/%Y")
-                        dateExt = date_Today
-                        index = [dateExt,resolution_text,resolution_url,name,entity,dateS,sessionValue]
-                        for k,v in zip(servir_resolution_data.keys(),index):
-                            servir_resolution_data[k].append(v)
-    
-                file_Name = "AllDataBase_Room1"
-                csv_filename = f"{file_Name}.csv"
-                with open(csv_filename, mode='w', newline='') as csv_file:
-                    csv_writer = csv.writer(csv_file)
-                    csv_writer.writerow(servir_resolution_data.keys())
-                    data_rows = zip(*servir_resolution_data.values())
-                    csv_writer.writerows(data_rows)
-                print(f"Los datos se han guardado en '{csv_filename}'.")
+                elif tr.find('td',colspan="4"):
+                    # print(f"entro en el anyo: {pagParse}")
+                    sessionValue = ' '.join(tr.stripped_strings)
+                    continue
+                resolution = tr.find('a')
+                if resolution:
+                    resolution_text = resolution.get_text()
+                    resolution_url = resolution['href']
+                    # print(resolution_url)
+                    name = (tr.find_all('td')[1]).get_text()
+                    entity = (tr.find_all('td')[2]).get_text()
+                    # print(f"El anio es {yearF} ")
+                    if yearF >= 2014:
+                        date_text = (tr.find_all('td')[3]).get_text()
+                        wordsDate = date_text.split()
+                        subStringDate = ' '.join(wordsDate[:3])
+                        date_text = subStringDate+" "+str(yearF) 
+                        date_text = date_text.lower()
+                        if "setiembre"in date_text:
+                            date_text = date_text.replace("setiembre", "septiembre")
+                        if "DE " in date_text:
+                            dateS = datetime.datetime.strptime(date_text, '%d DE %B %Y').date()
+                        elif "de " in date_text:
+                            dateS = datetime.datetime.strptime(date_text, '%d de %B %Y').date()
+                        elif "del " in date_text:
+                            dateS = datetime.datetime.strptime(date_text, '%d %B del %Y').date()
+                        # print(f"EL valor de date es: {date_text} y su dateS: {dateS}")
+                    date_Today = datetime.date.today().strftime("%d/%m/%Y")
+                    dateExt = date_Today
+                    index = [dateExt,resolution_text,resolution_url,name,entity,dateS,sessionValue]
+                    for k,v in zip(servir_resolution_data.keys(),index):
+                        servir_resolution_data[k].append(v)
+            saveData_CSV(servir_resolution_data,"primerTest")
 
-dataExtraction()
-
-# print(servir_resolution_data)
+dataRecollection()
+driver.quit()
