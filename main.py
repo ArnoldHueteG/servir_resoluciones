@@ -14,6 +14,7 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 
 driver = webdriver.Firefox()
+locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 
 def saveData_CSV(dictionary, file_Name):
     file_Name = file_Name
@@ -25,13 +26,14 @@ def saveData_CSV(dictionary, file_Name):
         csv_writer.writerows(data_rows)
     print(f"Los datos se han guardado en '{csv_filename}'.")
 
-def urlsvD_Generator():
-    urlBase = 'https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/'
+def urlsvD_Generator(urlBase): 
     response = requests.get(urlBase)
     soup = BeautifulSoup(response.text,"html.parser")
     tRow = (soup.find('tbody')).find_all('tr')
     urls = []
-    for tr in tRow[1:]:
+    if "/primera-sala/" in urlBase:
+        tRow = tRow[1:]
+    for tr in tRow:
         for tdIntr in tr.find_all('td'):
             urlDate = tdIntr.find('a')
             if urlDate:
@@ -42,12 +44,14 @@ def urlsvD_Generator():
                 # pagParse = "https://www.servir.gob.pe"+urlDateSuccess
                 # print(pagParse)
                 urls.append(urlDateSuccess)
-
+    # print(urls)
     return urls
 
-def dataRecollection():
-    urls = urlsvD_Generator()
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+def dataRecollection(urlBase):
+    urls = urlsvD_Generator(urlBase)
+    pattern = r'/([^/]+)/$'
+    match = re.search(pattern, urlBase)
+    file_Name = match.group(1)+"-Resolution-CSV"
     servir_resolution_data = {
         "fecha_extraction": [],
         "resolution": [],
@@ -66,12 +70,8 @@ def dataRecollection():
         pagParse = "https://www.servir.gob.pe"+urlTrans
         print(f"{yearF} -> las urls son {pagParse}")
         try:
-            # start_time = time.time()
             driver.get(pagParse)
             html = driver.page_source
-            # response.raise_for_status()
-            # elapsed_time = time.time() - start_time
-            # print(f"Tiempo transcurrido: {elapsed_time} segundos")
         except requests.exceptions.RequestException as e:
             print(f"Error en la solicitud: {e}")
         else:
@@ -86,9 +86,10 @@ def dataRecollection():
             dateS = ''
             for tr in trInTable[1:]:
                 thT =  tr.find('th')
-                if thT:
+                if thT or tr.find('td',colspan='3'):
                     sessionValue = ' '.join(tr.stripped_strings)
                     if yearF < 2014:
+                        print(f"el anio es {yearF}")
                         if tr.b:
                             date_text = tr.b.get_text()
                         if tr.strong:
@@ -129,7 +130,17 @@ def dataRecollection():
                     index = [dateExt,resolution_text,resolution_url,name,entity,dateS,sessionValue]
                     for k,v in zip(servir_resolution_data.keys(),index):
                         servir_resolution_data[k].append(v)
-            saveData_CSV(servir_resolution_data,"primerTest")
+            saveData_CSV(servir_resolution_data,file_Name)
 
-dataRecollection()
+# urlsBase = ['https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/','https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/segunda-sala/']
+
+urls = [
+    'https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/',
+    'https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/segunda-sala/'
+]
+
+# dataRecollection(urlsBase[0])
+dataRecollection(urls[1])
+# urlsvD_Generator(urlsBase[1])
+
 driver.quit()

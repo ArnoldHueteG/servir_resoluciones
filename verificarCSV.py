@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Cargar el archivo CSV en un DataFrame
-df = pd.read_csv('primerTest.csv')
+df = pd.read_csv('segunda-sala-Resolution-CSV.csv')
 
 # Verificar valores faltantes en cada columna
 missing_values = df.isnull().sum()
