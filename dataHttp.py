@@ -1,15 +1,19 @@
 import bs4
 from bs4 import BeautifulSoup
 from requests.exceptions import ChunkedEncodingError
-from datetime import datetime
 import requests
-import datetime
-import json
+from datetime import datetime
 import time
+import datetime
 import pandas as pd
+import json
 import csv
 import locale
 import re
+from selenium import webdriver
+from bs4 import BeautifulSoup
+
+driver = webdriver.Firefox()
 
 def saveData_CSV(dictionary, file_Name):
     file_Name = file_Name
@@ -35,7 +39,10 @@ def urlsvD_Generator():
                 replace_url = "https://www.servir.gob.pe"
                 if urlDateSuccess.startswith(replace_url):
                     urlDateSuccess = urlDateSuccess.replace(replace_url, "")
+                # pagParse = "https://www.servir.gob.pe"+urlDateSuccess
+                # print(pagParse)
                 urls.append(urlDateSuccess)
+
     return urls
 
 def dataRecollection():
@@ -51,48 +58,30 @@ def dataRecollection():
         "sesion": []
     }
     headers = {"user-agent":"Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0"}
-    signal = False
     valorReturnIt = ''
     for urlTrans in urls:
         numero = re.search(r'\d{4}', urlTrans)
         year_found = numero.group()
         yearF = int(year_found)
         pagParse = "https://www.servir.gob.pe"+urlTrans
-        if signal == True:
-            pagParse = valorReturnIt
         print(f"{yearF} -> las urls son {pagParse}")
-
-        # response = requests.get(pagParse)
-        # for i in range(2):
-        #     response = requests.get(pagParse)
-        # if response.status_code == 404:
-        #     print(f"{pagParse} con status_code 404")
-        #     continue
         try:
-            start_time = time.time()
-            for i in range(2):
-                response = requests.get(pagParse, timeout = 10)
-            response.raise_for_status()
-            #Medimos tiempo, quiero verificar algo
-            elapsed_time = time.time() - start_time
-            print(f"Tiempo transcurrido: {elapsed_time} segundos")
+            # start_time = time.time()
+            driver.get(pagParse)
+            html = driver.page_source
+            # response.raise_for_status()
+            # elapsed_time = time.time() - start_time
+            # print(f"Tiempo transcurrido: {elapsed_time} segundos")
         except requests.exceptions.RequestException as e:
             print(f"Error en la solicitud: {e}")
         else:
-            # El código aquí se ejecutará solo si la solicitud es exitosa.
-            # Puedes procesar la respuesta aquí.
-            # time.sleep(1)
-            soupDpage = BeautifulSoup(response.text,"html.parser")
-            # print("paso el soup")
+            soupDpage = BeautifulSoup(html,"html.parser")
             trInTable = soupDpage.find_all('tr')
             if trInTable:
                 print("Si existe trInTable")
-                signal = False
             else:
-                if response.status_code == 200:
-                    signal = True
-                    valorReturnIt = pagParse
-                print(f"ERROR -> {pagParse}")
+                print(f"ERROR en la Pag -> {pagParse}")
+                continue
             sessionValue = ''
             dateS = ''
             for tr in trInTable[1:]:
@@ -109,7 +98,7 @@ def dataRecollection():
                         dateS = datetime.datetime.strptime(date_text, '%d %B %Y').date()
                     continue
                 elif tr.find('td',colspan="4"):
-                    print(f"entro en el anyo: {pagParse}")
+                    # print(f"entro en el anyo: {pagParse}")
                     sessionValue = ' '.join(tr.stripped_strings)
                     continue
                 resolution = tr.find('a')
@@ -143,3 +132,4 @@ def dataRecollection():
             saveData_CSV(servir_resolution_data,"primerTest")
 
 dataRecollection()
+driver.quit()
