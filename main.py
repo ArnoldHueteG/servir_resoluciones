@@ -41,10 +41,7 @@ def urlsvD_Generator(urlBase):
                 replace_url = "https://www.servir.gob.pe"
                 if urlDateSuccess.startswith(replace_url):
                     urlDateSuccess = urlDateSuccess.replace(replace_url, "")
-                # pagParse = "https://www.servir.gob.pe"+urlDateSuccess
-                # print(pagParse)
                 urls.append(urlDateSuccess)
-    # print(urls)
     return urls
 
 def dataRecollection(urlBase):
@@ -108,7 +105,9 @@ def dataRecollection(urlBase):
                     resolution_url = resolution['href']
                     # print(resolution_url)
                     name = (tr.find_all('td')[1]).get_text()
+                    name = name.replace('\n','')
                     entity = (tr.find_all('td')[2]).get_text()
+                    entity = entity.replace('\n','')
                     # print(f"El anio es {yearF} ")
                     if yearF >= 2014:
                         date_text = (tr.find_all('td')[3]).get_text()
@@ -132,15 +131,11 @@ def dataRecollection(urlBase):
                         servir_resolution_data[k].append(v)
             saveData_CSV(servir_resolution_data,file_Name)
 
-# urlsBase = ['https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/','https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/segunda-sala/']
-
 urls = [
     'https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/primera-sala/',
     'https://www.servir.gob.pe/tribunal-sc/resoluciones-de-salas/segunda-sala/'
 ]
 
-# dataRecollection(urlsBase[0])
-dataRecollection(urls[1])
-# urlsvD_Generator(urlsBase[1])
+dataRecollection()
 
 driver.quit()
